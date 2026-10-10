@@ -979,6 +979,7 @@ function armSVG(){
     <linearGradient id="link" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E9EDF3"/><stop offset="1" stop-color="#9AA3B2"/></linearGradient>
   </defs>
   <rect width="1600" height="900" fill="#000"/><rect width="1600" height="900" fill="url(#agrid)"/>
+  <g id="aScene">
   <line x1="300" y1="812" x2="1500" y2="812" stroke="rgba(255,255,255,.25)" stroke-width="2"/>
   <g stroke="rgba(246,195,36,.45)" stroke-width="1" fill="none" id="aDims" stroke-dasharray="6 6">
     <circle id="aReach" cx="960" cy="760" r="540" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>
@@ -994,6 +995,7 @@ function armSVG(){
         </g>
       </g>
     </g>
+  </g>
   </g>
   <rect width="1600" height="900" fill="url(#avign)" pointer-events="none"/>
 </svg>`;
@@ -1240,7 +1242,7 @@ function refs(el){ const q=s=>el.querySelector(s), qa=s=>[...el.querySelectorAll
   return { track:q(".caps-track"), caps:q(".caps"), dots:qa(".dots i"), hint:q(".hint"), flood:q(".flood"), ring:q(".flood-ring"), fx:qa(".dots,.hint"),
     halo:qa(".halo"), glassb:qa(".glassb"), fil:qa(".fil"),
     bulb:q("#sBulb"), traces:qa("#sTraces path"), glowT:qa("#sTraceGlow path"), pads:qa("#sPads circle"), grid:q("#sGrid"), word:q("#sWord"),
-    L1:q("#aL1"), L2:q("#aL2"), G:q("#aG"), jA:q("#aJawA"), jB:q("#aJawB"), aBulb:q("#aBulb"), reach:q("#aReach"), hx:q(".hx-track") }; }
+    L1:q("#aL1"), L2:q("#aL2"), G:q("#aG"), jA:q("#aJawA"), jB:q("#aJawB"), aBulb:q("#aBulb"), reach:q("#aReach"), scene:q("#aScene"), hx:q(".hx-track") }; }
 function measure(){
   M.hdr=$("header.hdr").offsetHeight; M.vw=innerWidth; M.vh=innerHeight; const sy=scrollY;
   pins.forEach(el=>{ el._r=el._r||refs(el); const pin=el.firstElementChild, r=el._r;
@@ -1289,6 +1291,20 @@ function glowBulb(r,heat){
   const h=(.08+heat*.8).toFixed(2), g=clamp(.2+heat*.85).toFixed(2), fs=heat>.6?"#FFF3C4":"#9A6A00";
   r.halo.forEach(x=>set(x,"opacity",h)); r.glassb.forEach(x=>set(x,"opacity",g)); r.fil.forEach(x=>set(x,"stroke",fs));
 }
+/* About-page arm: on narrow (portrait) screens the 1600x900 scene is cropped at the sides,
+   so shrink the arm's working area (x 850-1530, y 140-830) into the visible top part. */
+function armFit(el){
+  const m=el._m, key=m.pinW+"x"+m.pinH; if(el._fitKey===key) return el._fit;
+  let fit={s:1,x:0,y:0,t:"translate(0,0) scale(1)"};
+  if(M.vw < M.vh*0.9){
+    const sc=Math.max(m.pinW/1600,m.pinH/900), visW=m.pinW/sc, visH=m.pinH/sc, x0=800-visW/2, y0=450-visH/2;
+    const bx0=850, by0=140, bw=680, bh=690;
+    const s=Math.min(visW*0.9/bw, visH*0.46/bh);
+    const x=800-(bx0+bw/2)*s, y=y0+visH*0.03-by0*s;
+    fit={s,x,y,t:`translate(${x.toFixed(1)},${y.toFixed(1)}) scale(${s.toFixed(4)})`};
+  }
+  el._fitKey=key; el._fit=fit; return fit;
+}
 const HOOKS = {
   bulb(el,pp){
     const r=el._r, pf=seg(pp,.83,1), p=clamp(pp/.8);
@@ -1329,7 +1345,8 @@ const HOOKS = {
     set(r.aBulb,"transform",`translate(${bx.toFixed(1)},${by.toFixed(1)}) scale(.62)`);
     glowBulb(r, lightsOn ? clamp(.15 + seg(p,.45,.8)*.85 + pf) : .04);
     set(r.reach,"stroke-dashoffset",(1-seg(p,.05,.4)).toFixed(3));
-    flood(el,pf,bx,by-28*.62);
+    const fit=armFit(el); set(r.scene,"transform",fit.t);
+    flood(el,pf,fit.x+bx*fit.s,fit.y+(by-28*.62)*fit.s);
   },
   hx(el,p){ el._r.hx.style.transform=`translate3d(${(-p*el._m.max).toFixed(1)}px,0,0)`; el.style.setProperty("--p",p.toFixed(3)); }
 };
